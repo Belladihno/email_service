@@ -1,0 +1,47 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Email_Log {
+  id               String   @id @default(uuid())
+  request_id       String   @unique
+  notification_id  String?  @unique
+  user_id          String
+  email            String
+  template_code    String
+  status           String   @default("pending")
+  retry_count      Int      @default(0)
+  error_message    String?
+  sent_at          DateTime?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@index([request_id])
+  @@index([status])
+  @@index([user_id])
+  @@map("email_logs")
+}
+
+model Circuit_Breaker_State {
+  id                String   @id @default(uuid())
+  service_name      String   @unique
+  state             String   @default("closed")
+  failure_count     Int      @default(0)
+  last_failure_time DateTime?
+  opened_at         DateTime?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@map("circuit_breaker_states")
+}
