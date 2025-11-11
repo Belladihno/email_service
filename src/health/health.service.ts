@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { HealthCheckDto } from 'src/dto/health.response.dto';
 
 @Injectable()
 export class HealthService {
@@ -11,12 +12,7 @@ export class HealthService {
     private redis: RedisService,
   ) {}
 
-  async getHealthStatus(): Promise<{
-    status: string;
-    timestamp: string;
-    service: string;
-    checks: Record<string, { status: string; message?: string }>;
-  }> {
+  async getHealthStatus(): Promise<HealthCheckDto> {
     const checks: Record<string, { status: string; message?: string }> = {
       database: await this.checkDatabase(),
       redis: await this.checkRedis(),
