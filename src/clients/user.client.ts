@@ -30,8 +30,11 @@ export class UserClient {
     const cached = await this.redis.getJson<UserResponse>(cacheKey);
     if (cached) {
       this.logger.log(`[${correlationId}] User ${userId} found in cache`);
+      await this.recordCacheHit();
       return cached;
     }
+
+    await this.recordCacheMiss();
 
     this.logger.log(
       `[${correlationId}] Fetching user ${userId} from User Service`,
@@ -72,5 +75,21 @@ export class UserClient {
   ): Promise<UserResponse['preferences']> {
     const user = await this.getUserById(userId, correlationId);
     return user.preferences;
+  }
+
+  private async recordCacheHit(): Promise<void> {
+    try {
+      await this.redis.increment('metrics:cache:user:hits');
+    } catch {
+      // Silently fail - metrics shouldn't break main functionality
+    }
+  }
+
+  private async recordCacheMiss(): Promise<void> {
+    try {
+      await this.redis.increment('metrics:cache:user:misses');
+    } catch {
+      // Silently fail - metrics shouldn't break main functionality
+    }
   }
 }

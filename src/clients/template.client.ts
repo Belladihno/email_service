@@ -34,8 +34,11 @@ export class TemplateClient {
       this.logger.log(
         `[${correlationId}] Template ${templateCode} found in cache`,
       );
+      await this.recordCacheHit();
       return cached;
     }
+
+    await this.recordCacheMiss();
 
     this.logger.log(
       `[${correlationId}] Fetching template ${templateCode} from Template Service`,
@@ -90,5 +93,21 @@ export class TemplateClient {
     }
 
     return { subject, body };
+  }
+
+  private async recordCacheHit(): Promise<void> {
+    try {
+      await this.redis.increment('metrics:cache:template:hits');
+    } catch {
+      // Silently fail - metrics shouldn't break main functionality
+    }
+  }
+
+  private async recordCacheMiss(): Promise<void> {
+    try {
+      await this.redis.increment('metrics:cache:template:misses');
+    } catch {
+      // Silently fail - metrics shouldn't break main functionality
+    }
   }
 }

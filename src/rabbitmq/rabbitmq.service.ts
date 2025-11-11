@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as amqp from 'amqplib';
-// import type { Connection, Channel } from 'amqplib';
 import { EmailProcessorService } from 'src/email/email.processor.service';
 import { NotificationMessage, RabbitMQConfig } from '../types';
 
@@ -46,7 +45,6 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
         'Failed to initialize RabbitMQ:',
         error instanceof Error ? error.stack : error,
       );
-      // Don't throw - let the app start and retry connection in background
       setTimeout(() => void this.onModuleInit(), 5000);
     }
   }
@@ -183,13 +181,32 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  async getQueueMessageCount(queueType: 'email' | 'failed'): Promise<number> {
+    if (!this.channel) {
+      this.logger.warn('Channel not initialized, cannot get queue count');
+      return 0;
+    }
+
+    try {
+      const queueName =
+        queueType === 'email' ? this.emailQueue : this.failedQueue;
+      const queueInfo = await this.channel.checkQueue(queueName);
+      return queueInfo.messageCount;
+    } catch (error) {
+      this.logger.error(
+        `Error getting ${queueType} queue count:`,
+        error instanceof Error ? error.message : error,
+      );
+      return 0;
+    }
+  }
+
   private async disconnect(): Promise<void> {
     try {
       if (this.channel) {
         await this.channel.close();
       }
       if (this.connection) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         await this.connection.close();
       }
       this.logger.log('Disconnected from RabbitMQ');

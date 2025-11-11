@@ -30,6 +30,7 @@ async function bootstrap(): Promise<void> {
     .setDescription('Distributed Notification System - Email Service')
     .setVersion('1.0')
     .addTag('health', 'Health check endpoints')
+    .addTag('metrics', 'Service metrics and monitoring')
     .addTag('email', 'Email notification endpoints')
     .addBearerAuth()
     .addServer('http://localhost:3003', 'Development')
@@ -55,6 +56,7 @@ async function bootstrap(): Promise<void> {
   logger.log(`Email Service is running on port ${port}`);
   logger.log(`Environment: ${configService.get<string>('nodeEnv')}`);
   logger.log(`Health check available at: http://localhost:${port}/health`);
+  logger.log(`Metrics available at: http://localhost:${port}/api/v1/metrics`);
   logger.log(`API Documentation: http://localhost:${port}/api/docs`);
 }
 bootstrap().catch((error) => {

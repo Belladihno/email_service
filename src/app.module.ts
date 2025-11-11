@@ -13,6 +13,8 @@ import { EmailProcessorService } from './email/email.processor.service';
 import { RabbitMQService } from './rabbitmq/rabbitmq.service';
 import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
+import { MetricsController } from './metrics/metrics.controller';
+import { MetricsService } from './metrics/metrics.service';
 
 @Module({
   imports: [
@@ -25,10 +27,11 @@ import { HealthService } from './health/health.service';
       maxRedirects: 5,
     }),
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, MetricsController],
   providers: [
     PrismaService,
     RedisService,
+    MetricsService,
     CircuitBreakerService,
     UserClient,
     TemplateClient,
