@@ -31,7 +31,6 @@ async function bootstrap(): Promise<void> {
     .setVersion('1.0')
     .addTag('health', 'Health check endpoints')
     .addTag('metrics', 'Service metrics and monitoring')
-    .addTag('email', 'Email notification endpoints')
     .addBearerAuth()
     .addServer('http://localhost:3003', 'Development')
     .build();
