@@ -2,8 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
-import { UserClient } from '../clients/user.client';
-import { TemplateClient } from '../clients/template.client';
+import { TemplateOrchestratorClient } from '../clients/template.orchestrator.client';
 import { ApiGatewayClient } from '../clients/api.gateway.client';
 import { SendGridService } from './sendgrid.service';
 import { NotificationMessage, NotificationStatus, RetryConfig } from '../types';
@@ -18,8 +17,7 @@ export class EmailProcessorService {
     private configService: ConfigService,
     private prisma: PrismaService,
     private redis: RedisService,
-    private userClient: UserClient,
-    private templateClient: TemplateClient,
+    private templateOrchestrator: TemplateOrchestratorClient,
     private gatewayClient: ApiGatewayClient,
     private sendGridService: SendGridService,
   ) {
@@ -43,14 +41,29 @@ export class EmailProcessorService {
 
       const notificationId = uuidv4();
 
-      await this.createEmailLog(message, notificationId, correlationId);
+      // Get rendered template with user data from Template Service
+      const rendered = await this.templateOrchestrator.renderForUser({
+        user_id: message.user_id,
+        template_code: message.template_code,
+        variables: {
+          name: message.variables.name,
+          link: message.variables.link,
+          ...message.variables.meta,
+        },
+        correlation_id: correlationId,
+        metadata: message.metadata,
+      });
 
-      const user = await this.userClient.getUserById(
-        message.user_id,
+      // Create email log
+      await this.createEmailLog(
+        message,
+        notificationId,
+        rendered.email,
         correlationId,
       );
 
-      if (!user.preferences.email) {
+      // Check if user has email notifications enabled
+      if (!rendered.user_preferences.email) {
         this.logger.log(
           `[${correlationId}] User has disabled email notifications`,
         );
@@ -62,25 +75,17 @@ export class EmailProcessorService {
         return;
       }
 
-      const template = await this.templateClient.getTemplateByCode(
-        message.template_code,
-        correlationId,
-      );
-
-      const rendered = this.templateClient.renderTemplate(
-        template,
-        message.variables,
-      );
-
+      // Send email
       await this.sendGridService.sendEmail(
         {
-          to: user.email,
+          to: rendered.email,
           subject: rendered.subject,
           html: rendered.body,
         },
         correlationId,
       );
 
+      // Update status
       await this.updateEmailLogStatus(
         message.request_id,
         NotificationStatus.DELIVERED,
@@ -120,20 +125,16 @@ export class EmailProcessorService {
   private async createEmailLog(
     message: NotificationMessage,
     notificationId: string,
+    email: string,
     correlationId: string,
   ): Promise<void> {
     try {
-      const user = await this.userClient.getUserById(
-        message.user_id,
-        correlationId,
-      );
-
       await this.prisma.email_Log.create({
         data: {
           request_id: message.request_id,
           notification_id: notificationId,
           user_id: message.user_id,
-          email: user.email,
+          email: email,
           template_code: message.template_code,
           status: NotificationStatus.PENDING,
           retry_count: 0,

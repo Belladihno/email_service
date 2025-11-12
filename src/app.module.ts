@@ -5,8 +5,7 @@ import configuration from './config/configuration';
 import { PrismaService } from './prisma/prisma.service';
 import { RedisService } from './redis/redis.service';
 import { CircuitBreakerService } from './circuit.breaker/circuit.breaker.service';
-import { UserClient } from './clients/user.client';
-import { TemplateClient } from './clients/template.client';
+import { TemplateOrchestratorClient } from './clients/template.orchestrator.client';
 import { ApiGatewayClient } from './clients/api.gateway.client';
 import { SendGridService } from './email/sendgrid.service';
 import { EmailProcessorService } from './email/email.processor.service';
@@ -33,8 +32,7 @@ import { MetricsService } from './metrics/metrics.service';
     RedisService,
     MetricsService,
     CircuitBreakerService,
-    UserClient,
-    TemplateClient,
+    TemplateOrchestratorClient,
     ApiGatewayClient,
     SendGridService,
     EmailProcessorService,

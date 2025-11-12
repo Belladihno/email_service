@@ -110,3 +110,30 @@ export interface RabbitMQConfig {
   failedQueue: string;
   exchangeName: string;
 }
+
+export interface UserPreference {
+  email: boolean;
+  push: boolean;
+}
+
+export interface RenderTemplateRequest {
+  user_id: string;
+  template_code: string;
+  variables: Record<string, string>;
+  correlation_id: string;
+  metadata?: Record<string, string>;
+}
+
+export interface RenderTemplateResponse {
+  email: string;
+  subject: string;
+  body: string;
+  user_preferences: UserPreference;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message: string;
+}

@@ -92,15 +92,14 @@ export class MetricsService {
   }
 
   private async getCircuitBreakerMetrics(): Promise<CircuitBreakerMetricsDto> {
-    const [sendgrid, userService, templateService] = await Promise.all([
+    const [sendgrid, templateService] = await Promise.all([
       this.getCircuitBreakerState('sendgrid'),
-      this.getCircuitBreakerState('user-service'),
       this.getCircuitBreakerState('template-service'),
     ]);
 
     return {
       sendgrid,
-      user_service: userService,
+      user_service: 'n/a',
       template_service: templateService,
     };
   }
