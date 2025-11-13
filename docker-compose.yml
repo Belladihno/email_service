@@ -1,44 +1,87 @@
+
 services:
   email-service:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: email-service
+    env_file:
+      - .env.docker
     ports:
       - "3003:3003"
     environment:
       - PORT=3003
+      - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/email_service?schema=public
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672}
+      - EMAIL_QUEUE=email.queue
+      - FAILED_QUEUE=failed.queue
+      - EXCHANGE_NAME=notifications.direct
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - USER_SERVICE_URL=http://user-service:3001
-      - TEMPLATE_SERVICE_URL=http://template-service:3004
-      - API_GATEWAY_URL=http://api-gateway:3000
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
       - SENDGRID_API_KEY=${SENDGRID_API_KEY}
-      - SENDGRID_FROM_EMAIL=${SENDGRID_FROM_EMAIL}
-      - SENDGRID_FROM_NAME=${SENDGRID_FROM_NAME}
+      - SENDGRID_FROM_EMAIL=${SENDGRID_FROM_EMAIL:-noreply@yourapp.com}
+      - SENDGRID_FROM_NAME=${SENDGRID_FROM_NAME:-EMAIL_SERVICE_API}
+      - TEMPLATE_SERVICE_URL=${TEMPLATE_SERVICE_URL:-http://localhost:3004}
+      - API_GATEWAY_URL=${API_GATEWAY_URL:-http://localhost:3000}
+      - CIRCUIT_BREAKER_THRESHOLD=5
+      - CIRCUIT_BREAKER_TIMEOUT=60000
+      - CIRCUIT_BREAKER_RESET_TIMEOUT=30000
+      - MAX_RETRY_ATTEMPTS=5
+      - INITIAL_RETRY_DELAY=1000
+      - MAX_RETRY_DELAY=32000
     depends_on:
-      - postgres
-      - rabbitmq
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
-      - notification-network
+      - email-network
+    restart: unless-stopped
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:15-alpine
+    container_name: email-postgres
+    ports:
+      - "5435:5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=email_service
-    ports:
-      - "5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
-      - notification-network
+      - email-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: email-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - email-network
+    restart: unless-stopped
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
+    container_name: email-rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -47,23 +90,20 @@ services:
       - RABBITMQ_DEFAULT_PASS=guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
-      - notification-network
+      - email-network
+    restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - notification-network
+networks:
+  email-network:
+    driver: bridge
 
 volumes:
   postgres_data:
-  rabbitmq_data:
   redis_data:
-
-networks:
-  notification-network:
-    driver: bridge
+  rabbitmq_data:
